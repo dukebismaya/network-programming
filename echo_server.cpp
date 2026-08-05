@@ -3,7 +3,28 @@
 #include <iostream>
 #include <netinet/in.h>
 #include <sys/socket.h>
+#include <thread>
 #include <unistd.h>
+
+
+void handle_client(int client_fd) {
+  char buffer[1024]{0};
+  while (true) {
+    std::fill(std::begin(buffer), std::end(buffer), 0);
+    auto bytes_recieved = recv(client_fd, buffer, sizeof(buffer) - 1, 0);
+    if (bytes_recieved < 0) {
+      std::cerr << "Error in recieving bytes" << std::endl;
+      break;
+    } else if (bytes_recieved == 0) {
+      std::clog << "Client disconnected before sending messages" << std::endl;
+      break;
+    }
+    std::cout << "Client " << client_fd << " says: " << buffer << std::endl;
+    // std::string response{"Hi from Bismaya's server.\n"};
+    send(client_fd, buffer, bytes_recieved, 0);
+  }
+  close(client_fd);
+}
 
 int main() {
   // Create the socket
@@ -55,22 +76,7 @@ int main() {
                                client_fd)
                 << std::endl;
     }
-    char buffer[1024]{0};
-    while (true) {
-      std::fill(std::begin(buffer), std::end(buffer), 0);
-      auto bytes_recieved = recv(client_fd, buffer, sizeof(buffer) - 1, 0);
-      if (bytes_recieved < 0) {
-        std::cerr << "Error in recieving bytes" << std::endl;
-        break;
-      } else if (bytes_recieved == 0) {
-        std::clog << "Client disconnected before sending messages" << std::endl;
-        break;
-      }
-      std::cout << "Client says: " << buffer << std::endl;
-      // std::string response{"Hi from Bismaya's server.\n"};
-      send(client_fd, buffer, bytes_recieved, 0);
-    }
-    close(client_fd);
+    std::thread(handle_client, client_fd).detach();
   }
   close(socket_fd);
 
